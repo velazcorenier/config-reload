@@ -10,18 +10,15 @@ import (
 	"github.com/go-fsnotify/fsnotify"
 )
 
-//
 var watcher *fsnotify.Watcher
 
-// main
 func main() {
 
 	// creates a new file watcher
 	watcher, _ = fsnotify.NewWatcher()
 	defer watcher.Close()
 
-	// starting at the root of the project, walk each file/directory searching for
-	// directories
+	// Starting at the root of the project
 	if err := filepath.Walk("/Users/renier.velazco@ibm.com/Desktop/config-reload/config-reload-premium/test", watchDir); err != nil {
 		fmt.Println("ERROR", err)
 	}
@@ -33,9 +30,19 @@ func main() {
 			select {
 			// watch for events
 			case event := <-watcher.Events:
-				fmt.Printf("File Changed %#v\n", event.Name)
-				fmt.Printf("Event Operation %#v\n", event.Op.String())
-				readFileContent(event.Name)
+				operation := event.Op.String()
+				path := event.Name
+
+				eventInformation(path, operation)
+
+				switch operation {
+				case "CHMOD":
+					//We are going to filter this Operation
+				case "REMOVE":
+					watcher.Remove(path)
+				default:
+					readFileContent(path)
+				}
 
 			// watch for errors
 			case err := <-watcher.Errors:
@@ -47,11 +54,10 @@ func main() {
 	<-done
 }
 
-// watchDir gets run as a walk func, searching for directories to add watchers to
+// Gets run as a walk func, searching for directories to add watchers to...
 func watchDir(path string, fi os.FileInfo, err error) error {
 
-	// since fsnotify can watch all the files in a directory, watchers only need
-	// to be added to each nested directory
+	// since fsnotify can watch all the files in a directory, watchers only need to be added to nested directories
 	if fi.Mode().IsDir() {
 		return watcher.Add(path)
 	}
@@ -59,11 +65,20 @@ func watchDir(path string, fi os.FileInfo, err error) error {
 	return nil
 }
 
+//Print file data
 func readFileContent(filePath string) {
 	file, err := ioutil.ReadFile(filePath)
 	if err != nil {
 
 		log.Fatal(err)
 	}
-	fmt.Print("New Content: " + string(file))
+	if len(file) > 0 {
+		fmt.Print("New Content: " + string(file))
+	}
+}
+
+//Print event summary
+func eventInformation(filepath string, event string) {
+	fmt.Printf("File Changed %#v\n", filepath)
+	fmt.Printf("Event Operation %#v\n", event)
 }
